@@ -2,452 +2,422 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calidad organoléptica en recepción de camarón</title>
-<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Control de Calidad y Recepción de Camarón</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <style>
-  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:#f6f7f9;color:#1f2a37;font-size:15px}
-  .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px}
-  .tab{padding:.8rem 1.2rem;color:#6b7280;border-bottom:3px solid transparent;white-space:nowrap;font-weight:500}
-  .tab.on{color:#1f2a37;border-color:#1f2a37;font-weight:700}
-  .chip{border:1px solid #cbd5e1;border-radius:999px;padding:.35rem .9rem;font-size:.875rem;background:#fff}
-  .chip.on{background:#1f2a37;color:#fff;border-color:#1f2a37}
-  .pg{border:1px solid #cbd5e1;border-radius:6px;padding:.3rem .8rem;background:#fff}
-  .pg:disabled{opacity:.4;cursor:default}
-  .fl label{display:block;font-size:.8rem;color:#6b7280;margin-bottom:.2rem}
-  .fl select,.fl input{width:100%;border:1px solid #cbd5e1;border-radius:6px;padding:.4rem .5rem;background:#fff;font-size:.9rem}
-  th{font-weight:600;padding:.6rem .7rem;white-space:nowrap} td{padding:.55rem .7rem}
+  body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: #F4F6F8; color: #1F2D3A; }
+  .card { background: #fff; border: 1px solid #E1E6EA; border-radius: .5rem; padding: 1.25rem; }
+  .tab-btn { padding: .8rem 1.2rem; font-weight: 600; font-size: 1.05rem; color: #5B6B78; border-bottom: 3px solid transparent; }
+  .tab-btn.active { color: #1F3A4D; border-bottom-color: #1F3A4D; }
+  .fld { width: 100%; border: 1px solid #CBD3DA; border-radius: .4rem; padding: .5rem; background: #fff; font-size: 1rem; }
+  .lbl { display: block; font-size: .85rem; color: #5B6B78; margin-bottom: .2rem; }
+  table { width: 100%; border-collapse: collapse; }
+  th { position: sticky; top: 0; background: #EEF2F5; text-align: left; white-space: nowrap; z-index: 1; }
+  th, td { padding: .55rem .8rem; font-size: .95rem; }
+  tbody tr { border-top: 1px solid #EDF0F2; }
+  .tag { padding: .15rem .65rem; border-radius: 999px; font-size: .82rem; font-weight: 600; white-space: nowrap; }
+  .ok { background: #E3EEE9; color: #2F6B55; }
+  .bad { background: #C0392B; color: #fff; }
+  .warn { background: #EEF0F2; color: #5B6B78; }
+  .btn { border: 1px solid #1F3A4D; color: #1F3A4D; border-radius: .4rem; padding: .45rem .9rem; font-weight: 600; background: #fff; }
+  .btn:disabled { opacity: .4; }
 </style>
 </head>
 <body>
 
-<header class="bg-white border-b border-slate-200">
-  <div class="max-w-7xl mx-auto px-4 py-4 flex flex-wrap items-center justify-between gap-3">
+<!-- ENCABEZADO FIJO: título, estado de datos, carga manual y pestañas -->
+<header class="sticky top-0 z-20 bg-white border-b border-slate-200">
+  <div class="max-w-7xl mx-auto px-4 pt-3 flex flex-wrap items-center justify-between gap-3">
     <div>
-      <h1 class="text-xl md:text-2xl font-bold">Calidad organoléptica en recepción de camarón</h1>
-      <p id="status" class="text-sm text-slate-500 mt-0.5">Cargando datos…</p>
+      <h1 class="text-2xl font-bold" style="color:#1F3A4D">Control de Calidad y Recepción de Camarón</h1>
+      <p id="status" class="text-sm text-slate-500">Cargando datos...</p>
     </div>
-    <div class="flex flex-wrap items-center gap-2 text-sm">
-      <label class="flex items-center gap-2 border border-slate-300 rounded-md px-3 py-2 cursor-pointer bg-white">
-        <input type="checkbox" id="dedup" checked> Omitir lotes duplicados <span id="dupInfo" class="text-slate-500"></span>
-      </label>
-      <label for="file" class="bg-slate-800 text-white rounded-md px-3 py-2 cursor-pointer font-medium">Cargar archivo</label>
-      <input type="file" id="file" accept=".csv,.txt,.xlsx,.xls" class="hidden">
-    </div>
+    <label class="btn cursor-pointer">Cargar CSV manualmente
+      <input id="fileIn" type="file" accept=".csv,.txt" class="hidden">
+    </label>
   </div>
+  <nav class="max-w-7xl mx-auto px-4 flex flex-wrap">
+    <button class="tab-btn active" data-tab="1">Distribución y clases</button>
+    <button class="tab-btn" data-tab="2">Scorecard de proveedores</button>
+    <button class="tab-btn" data-tab="3">Auditoría de matriz</button>
+    <button class="tab-btn" data-tab="4">Datos crudos</button>
+  </nav>
 </header>
 
-<section class="bg-white border-b border-slate-200 md:sticky md:top-0 z-20">
-  <div class="fl max-w-7xl mx-auto px-4 py-3 grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 items-end">
-    <div><label>Camaronera</label><select id="fCam"><option value="ALL">Todas</option></select></div>
-    <div><label>Lote (escribe para buscar)</label><input id="fLote" list="dlLotes" placeholder="Todos"><datalist id="dlLotes"></datalist></div>
-    <div><label>Zona anatómica</label>
-      <select id="fZona"><option value="ALL">Todas las zonas</option><option value="H">Cabeza</option><option value="T">Cola</option><option value="B">Todo el cuerpo</option></select></div>
-    <div><label>Muestra</label>
-      <select id="fMuestra"><option value="ALL">Consolidado</option><option value="1">1° muestra</option><option value="2">2° muestra</option><option value="3">3° muestra</option></select></div>
-    <div><label>Fecha desde</label><input type="date" id="fDesde"></div>
-    <div><label>Fecha hasta</label><input type="date" id="fHasta"></div>
-    <div><label>Lotes en gráficos</label>
-      <select id="fTop"><option>15</option><option selected>30</option><option>60</option><option>100</option></select></div>
-    <div><button id="btnReset" class="w-full bg-slate-100 hover:bg-slate-200 rounded-md py-2 font-medium text-sm">Limpiar filtros</button></div>
-  </div>
-</section>
+<main class="max-w-7xl mx-auto px-4 py-5 space-y-5">
 
-<main class="max-w-7xl mx-auto px-4 py-5">
-  <div id="vacio" class="card p-8 text-center text-slate-600">
-    <p class="font-semibold text-lg">Aún no hay datos</p>
-    <p class="mt-1">Sube el archivo <b>Consolidado_Organoleptico.csv</b> con el botón “Cargar archivo”, o colócalo junto a esta página en GitHub.</p>
-  </div>
+  <!-- FILTROS GLOBALES -->
+  <section class="card">
+    <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 items-end">
+      <div><span class="lbl">Camaronera</span><select id="fCam" class="fld"></select></div>
+      <div><span class="lbl">Clase real empacada</span><select id="fCls" class="fld"></select></div>
+      <div><span class="lbl">Severidad de branquias</span>
+        <select id="fSev" class="fld">
+          <option value="">Todas</option>
+          <option value="bof">BOF mayor a 0%</option>
+          <option value="bol">BOL mayor a 0%</option>
+          <option value="any">BOF o BOL mayor a 0%</option>
+          <option value="none">Sin BOF ni BOL</option>
+        </select></div>
+      <div><span class="lbl">Fecha desde</span><input id="fFrom" type="date" class="fld"></div>
+      <div><span class="lbl">Fecha hasta</span><input id="fTo" type="date" class="fld"></div>
+      <div><span class="lbl">Buscar lote o piscina</span><input id="fTxt" type="search" placeholder="Escribe aquí" class="fld"></div>
+      <div><button id="btnReset" class="btn w-full">Limpiar filtros</button></div>
+    </div>
+  </section>
 
-  <div id="app" class="hidden">
-    <div id="kpis" class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-5"></div>
+  <!-- KPIS GERENCIALES -->
+  <section id="kpis" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></section>
 
-    <nav class="card rounded-b-none border-b-0 flex overflow-x-auto" id="tabs">
-      <button class="tab on" data-t="p1">Resumen ejecutivo</button>
-      <button class="tab" data-t="p2">Pareto anatómico</button>
-      <button class="tab" data-t="p3">Muestras y cadena de frío</button>
-      <button class="tab" data-t="p4">Explorador y auditoría</button>
-    </nav>
+  <!-- PESTAÑA 1: DISTRIBUCIÓN Y CLASES -->
+  <section id="tab1" class="tab grid grid-cols-1 gap-4 max-w-3xl mx-auto">
+    <div class="card"><h2 class="font-semibold text-lg mb-3">Proporción de libras por clase real (%)</h2>
+      <div style="height:380px"><canvas id="chDonut"></canvas></div></div>
+  </section>
 
-    <!-- Pestaña 1 -->
-    <section id="p1" class="card rounded-t-none p-5 space-y-6">
-      <p id="note1" class="text-sm text-slate-500"></p>
-      <div class="grid lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2"><h3 class="font-bold mb-2">Composición de calidad por lote (100%)</h3><div class="h-80"><canvas id="cStack"></canvas></div></div>
-        <div><h3 class="font-bold mb-2">Defectos por zona anatómica</h3><div class="h-80"><canvas id="cDona"></canvas></div></div>
-      </div>
-      <div>
-        <h3 class="font-bold mb-2">Diagnóstico operativo por lote</h3>
-        <div class="overflow-x-auto border border-slate-200 rounded-lg">
-          <table class="w-full text-sm text-left"><thead class="bg-slate-50 text-slate-600"><tr>
-            <th>Lote</th><th>Camaronera</th><th>Fecha</th><th class="text-right">T (°C)</th><th class="text-right">Unidades</th>
-            <th class="text-right">% sano</th><th class="text-right">% cabeza</th><th class="text-right">% cola</th><th class="text-right">% cuerpo</th><th>Diagnóstico</th>
-          </tr></thead><tbody id="tbDiag"></tbody></table>
-        </div>
-        <div id="pgDiag" class="flex items-center justify-end gap-3 mt-2 text-sm"></div>
-      </div>
-    </section>
+  <!-- PESTAÑA 2: SCORECARD DE PROVEEDORES -->
+  <section id="tab2" class="tab hidden grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <div class="card"><h2 class="font-semibold text-lg mb-3">Mayor porcentaje de camarón fresco y sano</h2><div id="rank1" class="overflow-auto" style="max-height:60vh"></div></div>
+    <div class="card"><h2 class="font-semibold text-lg mb-3">Menor afectación total en branquias</h2><div id="rank2" class="overflow-auto" style="max-height:60vh"></div></div>
+  </section>
 
-    <!-- Pestaña 2 -->
-    <section id="p2" class="card rounded-t-none p-5 space-y-5 hidden">
-      <div id="chips" class="flex flex-wrap gap-2"></div>
-      <div class="grid lg:grid-cols-3 gap-6">
-        <div class="lg:col-span-2"><h3 class="font-bold mb-2">Diagrama de Pareto de defectos</h3><div class="h-96"><canvas id="cPareto"></canvas></div></div>
-        <div class="overflow-y-auto max-h-96 border border-slate-200 rounded-lg">
-          <table class="w-full text-sm"><thead class="bg-slate-50 text-slate-600 sticky top-0"><tr>
-            <th>Defecto</th><th class="text-right">Unid.</th><th class="text-right">Aporte</th><th class="text-right">Acum.</th></tr></thead>
-            <tbody id="tbPareto"></tbody></table>
-        </div>
-      </div>
-      <p class="text-sm text-slate-500">Los defectos marcados en rojo concentran el primer 80% de las no conformidades.</p>
-    </section>
+  <!-- PESTAÑA 3: AUDITORÍA DE MATRIZ -->
+  <section id="tab3" class="tab hidden space-y-4">
+    <div id="auditKpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
+    <div class="card">
+      <h2 class="font-semibold text-lg">Clase teórica contra clase real</h2>
+      <p class="text-sm text-slate-500 mb-3">Matriz por porcentaje sano: clase A desde 60%, clase B de 46% a 59%, clase C menos de 46%. Un lote de clase A con BOF mayor a 0% también es desvío. Los desvíos aparecen primero.</p>
+      <div id="audit" class="overflow-auto" style="max-height:60vh"></div>
+    </div>
+  </section>
 
-    <!-- Pestaña 3 -->
-    <section id="p3" class="card rounded-t-none p-5 space-y-6 hidden">
-      <div>
-        <h3 class="font-bold mb-1">Homogeneidad entre muestras: % fresco y sano</h3>
-        <p id="note3" class="text-sm text-slate-500 mb-2"></p>
-        <div class="h-80"><canvas id="cMuestras"></canvas></div>
+  <!-- PESTAÑA 4: DATOS CRUDOS -->
+  <section id="tab4" class="tab hidden card">
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
+      <h2 class="font-semibold text-lg">Explorador de datos lote por lote</h2>
+      <div class="flex items-center gap-3">
+        <button id="prev" class="btn">Anterior</button>
+        <span id="pageInfo" class="text-sm text-slate-600"></span>
+        <button id="next" class="btn">Siguiente</button>
       </div>
-      <div>
-        <h3 class="font-bold mb-1">Temperatura de recepción vs % camarón flácido</h3>
-        <p id="corr" class="text-sm text-slate-500 mb-2"></p>
-        <div class="h-80"><canvas id="cTemp"></canvas></div>
-      </div>
-    </section>
-
-    <!-- Pestaña 4 -->
-    <section id="p4" class="card rounded-t-none p-5 space-y-4 hidden">
-      <div class="flex flex-wrap items-center gap-2 justify-between">
-        <div class="flex flex-wrap gap-2 items-center">
-          <input id="exQ" placeholder="Buscar en la tabla…" class="border border-slate-300 rounded-md px-3 py-2 text-sm w-64">
-          <label for="file" class="border border-slate-300 rounded-md px-3 py-2 text-sm cursor-pointer bg-white">Cargar nuevo archivo</label>
-        </div>
-        <div class="flex gap-2 text-sm">
-          <button id="btnCsv" class="bg-slate-800 text-white rounded-md px-3 py-2 font-medium">Exportar CSV</button>
-          <button id="btnXls" class="bg-slate-800 text-white rounded-md px-3 py-2 font-medium">Exportar Excel</button>
-        </div>
-      </div>
-      <p id="exCount" class="text-sm text-slate-500"></p>
-      <div class="overflow-x-auto border border-slate-200 rounded-lg max-h-[28rem]">
-        <table class="w-full text-sm text-left"><thead class="bg-slate-50 text-slate-600 sticky top-0"><tr>
-          <th>Lote</th><th>Camaronera</th><th>Fecha</th><th>Muestra</th><th>Parámetro</th><th>Zona</th><th class="text-right">Unidades</th><th class="text-right">% real</th>
-        </tr></thead><tbody id="tbEx"></tbody></table>
-      </div>
-      <div id="pgEx" class="flex items-center justify-end gap-3 text-sm"></div>
-    </section>
-  </div>
+    </div>
+    <div id="raw" class="overflow-auto" style="max-height:65vh"></div>
+  </section>
 </main>
 
 <script>
-/* ============ 1. CONFIGURACIÓN ============ */
-const CSV_URL = './Consolidado_Organoleptico.csv';   // CSV junto a este index.html
-const CFG = { TEMP_MAX: 4.0, SANO_OK: 80, SANO_MIN: 60, CAB_DESC: 20, COLA_MAX: 15, HOMOG: 10 };
-// Zonas: S = sano, H = cabeza, T = cola, B = todo el cuerpo
-const ZN = { S: 'Fresco y sano', H: 'Cabeza', T: 'Cola', B: 'Todo el cuerpo' };
-const ZC = { S: '#7FA6A0', H: '#3F5F7F', T: '#9AA5B1', B: '#C8B88A' };   // paleta apagada
-const ACC = '#C62828', INK = '#1f2a37', OK = '#4C8C6B', WARN = '#C58B1B';  // acento para riesgos
-const PARAMS = [
-  ['Camarón Fresco y Sano','S'],
-  ['Camarón Cabeza Floja','H'],['Hepato Páncreas reventado','H'],['Cabeza Anaranjada','H'],['Camarón lodo en branquias','H'],
-  ['Camarón Quebrado','T'],['Camarón Deforme','T'],['Camarón con corbata grande','T'],['Camarón con corbata sucia','T'],
-  ['Camarón Flácido','B'],['Camarón Mudado','B'],['Camarón manchas leves','B'],['Camarón manchas fuertes','B'],
-  ['Camarón con Hongos/Bacterias','B'],['Camarón Deshidratado','B'],['Camarón Deshidratado fuerte','B'],
-  ['Camarón con Melanosis','B'],['Camarón Rosado/rojo','B'],['Camarón semirosado','B'],['Otros','B']
-];
-const IFLA = PARAMS.findIndex(p => p[0] === 'Camarón Flácido');
+/* ============ 1. CONFIGURACIÓN Y BASE DE RESPALDO ============ */
+const CSV_NAMES = ['Reporte_Branquias_Consolidado_Limpio_Final.csv', 'Reporte_Branquias_Consolidado_Limpio_Final.CSV',
+  'Reporte_Branquias_Consolidado_Limpio_Final.csv.csv', 'Reporte_Branquias_Consolidado_Limpio_Final'];
+const PAGE_SIZE = 50;
+const CLASES = {
+  A: { n: 'A-PRIMERA', c: '#1F3A4D', r: 3 },
+  B: { n: 'B-SEGUNDA', c: '#6F8AA0', r: 2 },
+  C: { n: 'C-TERCERO', c: '#B5C2CC', r: 1 },
+  D: { n: 'D-BLOQUEO', c: '#C0392B', r: 0 },
+  '?': { n: 'Sin clase', c: '#D5DBE0', r: -1 }
+};
+const FALLBACK_CSV = `Lote;Piscina;Nombre de camaronera;Tipo de logística de pesca;Fecha de llegada;Meta_Gramaje entero;Meta_Gramaje cola;BOML (Muy Leve ) %;BOL (Leve ) %;BOF (Fuerte %);E. fresco y sano (Valor);E. fresco y sano (%);Libras recibidas total;Clase a empacar
+L-1001;P-03;Camaronera Norte;Pesca nocturna;05/10/2026;40/50;50/60;10 %;12 %;0 %;78;78 %;12500;A-PRIMERA
+L-1002;P-05;Camaronera Norte;Pesca diurna;06/10/2026;40/50;50/60;14 %;22 %;0 %;64;64 %;9800;A-PRIMERA
+L-1003;PU4029A;Camaronera Sur;Pesca nocturna;07/10/2026;50/60;60/70;18 %;20 %;10 %;52;52 %;11200;B-SEGUNDA
+L-1004;PD312A;Camaronera Sur;Pesca diurna;08/10/2026;50/60;60/70;30 %;35 %;0 %;35;35 %;8700;A-PRIMERA
+L-1005;PT215B;Camaronera Delta;Pesca nocturna;09/10/2026;40/50;50/60;28 %;18 %;13 %;41;41 %;10300;C-TERCERO
+L-1006;848;Camaronera Delta;Pesca diurna;10/10/2026;40/50;50/60;20 %;14 %;8 %;58;58 %;9500;B-SEGUNDA
+L-1007;P-06;Camaronera Norte;Pesca nocturna;11/10/2026;30/40;40/50;7 %;5 %;0 %;88;88 %;13400;A-PRIMERA`;
 
 /* ============ 2. UTILIDADES ============ */
 const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-const norm = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-  .replace(/[°º]/g, '').replace(/[–—]/g, '-').replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim();
-const PN = PARAMS.map(p => norm(p[0]));
-const f1 = v => v.toFixed(1);
-const dot = z => `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${z.startsWith('#') ? z : ZC[z]};margin-right:6px"></span>`;
+const U = {
+  esc: s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])),
+  norm: s => String(s).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s._()\-]/g, ''),
+  fmt: (n, d = 0) => Number(n).toLocaleString('es-EC', { minimumFractionDigits: d, maximumFractionDigits: d }),
+  // Convierte "33 %", "12,5" o "1.234,5" a número
+  num(v) {
+    let s = String(v ?? '').replace(/%/g, '').replace(/\s/g, '');
+    if (!s) return 0;
+    s = (s.includes(',') && s.includes('.')) ? s.replace(/\./g, '').replace(',', '.') : s.replace(',', '.');
+    const x = parseFloat(s);
+    return isNaN(x) ? 0 : x;
+  },
+  order: 'dmy', // orden de la fecha corta; se detecta al cargar cada archivo
+  // Detecta si la fecha corta es dd/mm/aaaa o mm/dd/aaaa mirando todas las filas
+  detectOrder(list) {
+    let dm = 0, md = 0;
+    list.forEach(t => { const k = String(t).trim().match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.]\d{2,4}/); if (k) { if (+k[1] > 12) dm++; else if (+k[2] > 12) md++; } });
+    return md > dm ? 'mdy' : 'dmy';
+  },
+  // Convierte fecha corta, aaaa-mm-dd o serial de Excel a milisegundos UTC
+  date(v) {
+    const s = String(v ?? '').trim();
+    let m = s.match(/^(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/);
+    if (m) { let y = +m[3]; if (y < 100) y += 2000; const mdy = U.order === 'mdy'; return Date.UTC(y, (mdy ? +m[1] : +m[2]) - 1, mdy ? +m[2] : +m[1]); }
+    m = s.match(/^(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/);
+    if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
+    if (/^\d{5}$/.test(s)) return Date.UTC(1899, 11, 30) + (+s) * 864e5;
+    return null;
+  },
+  showDate(ms) {
+    if (ms === null) return '-';
+    const d = new Date(ms);
+    return `${String(d.getUTCDate()).padStart(2, '0')}/${String(d.getUTCMonth() + 1).padStart(2, '0')}/${d.getUTCFullYear()}`;
+  },
+  // Promedio ponderado por libras (si no hay libras, promedio simple)
+  wavg(rows, key) {
+    const w = rows.reduce((a, r) => a + r.lbs, 0);
+    if (!rows.length) return 0;
+    return w > 0 ? rows.reduce((a, r) => a + r[key] * r.lbs, 0) / w : rows.reduce((a, r) => a + r[key], 0) / rows.length;
+  },
+  avg: (rows, fn) => rows.length ? rows.reduce((a, r) => a + fn(r), 0) / rows.length : 0
+};
 
-// Número tolerante: acepta vacíos, "12,5", "1.234,5", "15%" y negativos (los pasa a 0)
-function num(v) {
-  if (typeof v === 'number') return isFinite(v) && v > 0 ? v : 0;
-  let s = String(v ?? '').replace('%', '').trim();
-  if (!s) return 0;
-  if (s.includes(',')) s = s.includes('.') ? s.replace(/\./g, '').replace(',', '.') : s.replace(',', '.');
-  const n = parseFloat(s);
-  return isFinite(n) && n > 0 ? n : 0;
-}
-function parseTemp(v) {
-  if (typeof v === 'number') return isFinite(v) ? v : null;
-  const n = parseFloat(String(v ?? '').replace(',', '.'));
-  return isFinite(n) ? n : null;   // vacío = sin dato (no es 0 °C)
-}
-// Fecha a formato ISO (acepta dd/mm/aaaa, aaaa-mm-dd y número serial de Excel)
-function isoDate(v) {
-  if (typeof v === 'string' && /^\d{5}(\.\d+)?$/.test(v.trim())) v = Number(v);
-  if (typeof v === 'number') return v > 20000 && v < 80000 ? new Date(Math.round((v - 25569) * 864e5)).toISOString().slice(0, 10) : '';
-  const s = String(v ?? '').trim(); let m;
-  if ((m = s.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/))) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
-  if ((m = s.match(/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{2,4})/))) return `${m[3].length === 2 ? '20' + m[3] : m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-  return s;
-}
-function setStatus(msg, bad) { const e = $('status'); e.textContent = msg; e.style.color = bad ? ACC : OK; }
-
-/* ============ 3. CARGA DE DATOS ============ */
-let LOTS = [];
-function ingest(rows, origen) {
-  if (!rows.length) return setStatus('El archivo no tiene filas de datos.', true);
-  const km = {}; Object.keys(rows[0]).forEach(k => km[norm(k)] = k);
-  const find = (n, exacto) => km[n] || (exacto ? null : km[Object.keys(km).find(x => x.startsWith(n))] || null);
-  const C = { arch: find('archivo'), lote: find('lote', 1), tipo: find('tipo'), fecha: find('fecha'), camaronera: find('camaronera'), piscina: find('piscina'), temp: find('temperatura') };
-  const U = PN.map(p => [1, 2, 3].map(m => km[`${p} - ${m} muestra - unid`] || null));  // U[parámetro][muestra]
-  if (!U.flat().some(Boolean)) return setStatus('No se encontraron columnas con el formato "Parámetro - 1° Muestra - Unid".', true);
-  const g = (r, k) => k ? String(r[k] ?? '').trim() : '';
-  LOTS = [];
-  rows.forEach((r, i) => {
-    const u = [0, 1, 2].map(m => U.map(ks => ks[m] ? num(r[ks[m]]) : 0));   // u[muestra][parámetro]
-    const st = u.map(a => a.reduce((x, y) => x + y, 0));                      // unidades reales por muestra
-    if (!st[0] && !st[1] && !st[2]) return;                                   // fila sin evaluaciones
-    LOTS.push({ id: i, arch: g(r, C.arch), lote: g(r, C.lote) || 'Sin lote', tipo: g(r, C.tipo), fecha: isoDate(C.fecha ? r[C.fecha] : ''),
-      camaronera: g(r, C.camaronera) || 'Sin dato', piscina: g(r, C.piscina), temp: C.temp ? parseTemp(r[C.temp]) : null, u, st });
-  });
-  if (!LOTS.length) return setStatus('No hay lotes con unidades evaluadas.', true);
-  ['fCam', 'fLote', 'fDesde', 'fHasta'].forEach(id => $(id).value = id === 'fCam' ? 'ALL' : '');
-  $('vacio').classList.add('hidden'); $('app').classList.remove('hidden');
-  setStatus(`${origen}: ${LOTS.length.toLocaleString('es-EC')} lotes cargados`);
-  populate(); update();
-}
-async function decode(buf) {
+/* ============ 3. LECTURA Y LIMPIEZA DEL CSV ============ */
+// Decodifica en UTF-8 y, si falla, en Windows-1252 (típico de Excel); el BOM se elimina
+function decodeBuffer(buf) {
   try { return new TextDecoder('utf-8', { fatal: true }).decode(buf); }
-  catch (e) { return new TextDecoder('windows-1252').decode(buf); }   // CSV de Excel en español
+  catch (e) { return new TextDecoder('windows-1252').decode(buf); }
 }
-function parseCSV(text, origen) {
-  const r = Papa.parse(text, { header: true, skipEmptyLines: 'greedy', transformHeader: h => h.trim() });
-  ingest(r.data, origen);
+// Analizador CSV con auto-detección de separador y comillas
+function parseCSV(text) {
+  text = text.replace(/\uFEFF/g, '');
+  const first = text.split(/\r?\n/)[0] || '';
+  const sep = (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length ? ';' : ',';
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === sep) { row.push(cur); cur = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(cur); cur = ''; rows.push(row); row = []; }
+    else cur += c;
+  }
+  if (cur !== '' || row.length) { row.push(cur); rows.push(row); }
+  return rows.filter(r => r.some(x => x.trim() !== ''));
 }
-async function autoLoad() {
-  try {
-    const res = await fetch(CSV_URL + '?v=' + Date.now(), { cache: 'no-store' });
-    if (!res.ok) throw new Error();
-    parseCSV(await decode(await res.arrayBuffer()), 'Base automática');
-  } catch (e) { setStatus('No se encontró el CSV junto a la página. Usa "Cargar archivo".', true); }
+// Ubica cada columna por nombre, tolerando tildes, espacios y guiones bajos
+function mapColumns(headers) {
+  const n = headers.map(U.norm), f = fn => n.findIndex(fn);
+  return {
+    lote: f(h => h.startsWith('lote')), piscina: f(h => h.includes('piscina')),
+    cam: f(h => h.includes('camaronera')), log: f(h => h.includes('logistica')),
+    fecha: f(h => h.includes('fecha')), boml: f(h => h.startsWith('boml')),
+    bol: f(h => h.startsWith('bol') && !h.startsWith('boml')), bof: f(h => h.startsWith('bof')),
+    sano: f(h => h.includes('frescoysano') && !h.includes('valor')),
+    lbs: f(h => h.includes('librasrecibidas')), clase: f(h => h.includes('claseaempacar'))
+  };
 }
-async function onFile(e) {
-  const f = e.target.files[0]; if (!f) return;
-  try {
-    const buf = await f.arrayBuffer();
-    if (/\.(csv|txt)$/i.test(f.name)) parseCSV(await decode(buf), f.name);
-    else { const wb = XLSX.read(new Uint8Array(buf), { type: 'array' }); ingest(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' }), f.name); }
-  } catch (err) { setStatus('No se pudo leer el archivo: ' + err.message, true); }
-  e.target.value = '';
+// Reglas de negocio: el prefijo del código de piscina define la camaronera oficial
+function camaroneraOficial(codigo, original) {
+  const c = String(codigo).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const pu = c.match(/^PU(\d)/);
+  if (pu) return `Puerto Inca ${pu[1]}`;   // PU4029A: sector 4, piscina 029A
+  if (c.startsWith('PU')) return 'Puerto Inca';
+  if (c.startsWith('PD')) return 'Puna 2';  // solo importa el prefijo
+  if (c.startsWith('PT')) return 'Taura';   // solo importa el prefijo
+  return original || 'Sin nombre';          // caso estándar: se mantiene el nombre original
+}
+const teorica = p => p >= 60 ? 'A' : p >= 46 ? 'B' : 'C';
+function claseKey(t) {
+  const u = String(t).toUpperCase();
+  if (u.includes('DIESEL')) return 'D';
+  const m = u.match(/^\s*([ABCD])/);
+  return m ? m[1] : '?';
+}
+// Convierte las filas en registros numéricos y audita cada lote contra la matriz
+function buildRecords(rows) {
+  const H = rows[0], c = mapColumns(H);
+  if (c.sano < 0 || c.lbs < 0 || c.clase < 0) return null;
+  const g = (r, i) => i >= 0 ? (r[i] || '').trim() : '';
+  U.order = U.detectOrder(rows.slice(1).map(r => g(r, c.fecha)));
+  const data = rows.slice(1).map(r => {
+    const o = {
+      raw: r, lote: g(r, c.lote), piscina: g(r, c.piscina), cam: camaroneraOficial(g(r, c.piscina), g(r, c.cam)),
+      fecha: U.date(g(r, c.fecha)), boml: U.num(g(r, c.boml)), bol: U.num(g(r, c.bol)),
+      bof: U.num(g(r, c.bof)), sano: U.num(g(r, c.sano)), lbs: U.num(g(r, c.lbs)), clase: claseKey(g(r, c.clase))
+    };
+    o.tot = o.boml + o.bol + o.bof;
+    o.raw = [...H.map((_, i) => r[i] ?? ''), o.cam]; // la última columna es la camaronera oficial
+    o.teo = teorica(o.sano);
+    if (o.clase === 'D') o.est = 'warn', o.estTxt = 'Bloqueo', o.tipo = '-';
+    else if (o.clase === '?') o.est = 'warn', o.estTxt = 'Sin clase', o.tipo = '-';
+    else if (o.clase === 'A' && o.bof > 0) o.est = 'bad', o.estTxt = 'Desvío Detectado', o.tipo = 'BOF en clase A';
+    else if (o.clase === o.teo) o.est = 'ok', o.estTxt = 'Conforme', o.tipo = '-';
+    else o.est = 'bad', o.estTxt = 'Desvío Detectado', o.tipo = CLASES[o.clase].r > CLASES[o.teo].r ? 'Sobreclasificado' : 'Subclasificado';
+    return o;
+  });
+  return { headers: [...H.map(h => h.replace(/_/g, ' ')), 'Camaronera Oficial'], data };
 }
 
-/* ============ 4. FILTROS Y CÁLCULO ============ */
-function activeLots() {
-  if (!$('dedup').checked) return LOTS;
-  const seen = new Set();
-  return LOTS.filter(l => { const k = [l.lote, l.piscina, l.fecha].join('|').toLowerCase(); if (seen.has(k)) return false; seen.add(k); return true; });
+/* ============ 4. ESTADO, CARGA Y FILTROS ============ */
+let HEAD = [], DATA = [], ROWS = [], TAB = 1, PAGE = 0, charts = {};
+
+function loadText(text, origin) {
+  const res = buildRecords(parseCSV(text));
+  if (!res || !res.data.length) { alert('El archivo no tiene las columnas esperadas.'); return false; }
+  HEAD = res.headers; DATA = res.data;
+  $('status').textContent = `${origin}: ${DATA.length} lotes cargados`;
+  fillSelects();
+  const dates = DATA.map(r => r.fecha).filter(d => d !== null);
+  if (dates.length) {
+    $('fFrom').min = $('fTo').min = new Date(Math.min(...dates)).toISOString().slice(0, 10);
+    $('fFrom').max = $('fTo').max = new Date(Math.max(...dates)).toISOString().slice(0, 10);
+  }
+  PAGE = 0; render(); return true;
 }
-function populate() {
-  const L = activeLots(), cur = $('fCam').value;
-  const cams = [...new Set(L.map(l => l.camaronera))].sort();
-  $('fCam').innerHTML = '<option value="ALL">Todas</option>' + cams.map(c => `<option>${esc(c)}</option>`).join('');
-  if (cams.includes(cur)) $('fCam').value = cur;
-  $('dlLotes').innerHTML = [...new Set(L.map(l => l.lote))].map(v => `<option value="${esc(v)}">`).join('');
-  $('dupInfo').textContent = LOTS.length - L.length ? `(${LOTS.length - L.length} omitidos)` : '';
+function fillSelects() {
+  const cam = $('fCam').value, cls = $('fCls').value;
+  const cams = [...new Set(DATA.map(r => r.cam))].sort();
+  const clases = ['A', 'B', 'C', 'D', '?'].filter(k => DATA.some(r => r.clase === k));
+  $('fCam').innerHTML = '<option value="">Todas</option>' + cams.map(x => `<option>${U.esc(x)}</option>`).join('');
+  $('fCls').innerHTML = '<option value="">Todas</option>' + clases.map(k => `<option value="${k}">${CLASES[k].n}</option>`).join('');
+  $('fCam').value = cams.includes(cam) ? cam : ''; $('fCls').value = clases.includes(cls) ? cls : '';
 }
-const ISO = /^\d{4}-\d{2}-\d{2}$/;
 function filtered() {
-  const cam = $('fCam').value, q = $('fLote').value.trim().toLowerCase(), d1 = $('fDesde').value, d2 = $('fHasta').value;
-  return activeLots().filter(l => (cam === 'ALL' || l.camaronera === cam) && (!q || l.lote.toLowerCase().includes(q))
-    && (!d1 || (ISO.test(l.fecha) && l.fecha >= d1)) && (!d2 || (ISO.test(l.fecha) && l.fecha <= d2)));
-}
-// Recalcula todo desde las unidades reales (ignora las columnas de % del archivo)
-function compute(lots, ms) {
-  const ix = ms === 'ALL' ? [0, 1, 2] : [+ms - 1];
-  return lots.map(l => {
-    const c = new Array(PARAMS.length).fill(0), z = { S: 0, H: 0, T: 0, B: 0 };
-    ix.forEach(m => l.u[m].forEach((v, i) => c[i] += v));
-    c.forEach((v, i) => z[PARAMS[i][1]] += v);
-    const tot = z.S + z.H + z.T + z.B, p = k => tot ? z[k] / tot * 100 : 0;
-    const r = { l, c, z, tot, pS: p('S'), pH: p('H'), pT: p('T'), pB: p('B'), fl: tot ? c[IFLA] / tot * 100 : 0,
-      ms3: [0, 1, 2].map(m => l.st[m] ? l.u[m][0] / l.st[m] * 100 : null) };
-    r.dx = diagnose(r); return r;
+  const cam = $('fCam').value, cls = $('fCls').value, sev = $('fSev').value, q = $('fTxt').value.trim().toLowerCase();
+  const from = $('fFrom').value ? Date.parse($('fFrom').value + 'T00:00:00Z') : null;
+  const to = $('fTo').value ? Date.parse($('fTo').value + 'T00:00:00Z') : null;
+  return DATA.filter(r => {
+    if (cam && r.cam !== cam) return false;
+    if (cls && r.clase !== cls) return false;
+    if (sev === 'bof' && !(r.bof > 0)) return false;
+    if (sev === 'bol' && !(r.bol > 0)) return false;
+    if (sev === 'any' && !(r.bof > 0 || r.bol > 0)) return false;
+    if (sev === 'none' && (r.bof > 0 || r.bol > 0)) return false;
+    if (q && !`${r.lote} ${r.piscina}`.toLowerCase().includes(q)) return false;
+    if ((from !== null || to !== null) && r.fecha === null) return false;
+    if (from !== null && r.fecha < from) return false;
+    if (to !== null && r.fecha > to) return false;
+    return true;
   });
 }
-function diagnose(r) {
-  const t = r.l.temp;
-  if (t != null && t > CFG.TEMP_MAX) return { txt: 'Alerta de cadena de frío', c: ACC };
-  if (r.pH >= CFG.CAB_DESC && r.pT < CFG.COLA_MAX) return { txt: 'Derivar a descabezado (cola)', c: WARN };
-  if (r.pS < CFG.SANO_MIN) return { txt: 'Revisar lote, calidad baja', c: ACC };
-  if (r.pS >= CFG.SANO_OK) return { txt: 'Apto para entero', c: OK };
-  return { txt: 'Apto con observación', c: WARN };
+
+/* ============ 5. RENDERIZADO ============ */
+const kpi = (t, v, s, accent) => `<div class="card"><div class="text-sm text-slate-500">${t}</div>
+  <div class="text-3xl font-bold mt-1" style="color:${accent ? '#C0392B' : '#1F3A4D'}">${v}</div>
+  <div class="text-sm text-slate-400 mt-1">${s}</div></div>`;
+const table = (heads, body) => `<table><thead><tr>${heads.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${body}</tbody></table>`;
+const empty = '<p class="text-slate-500 p-4">Sin lotes con los filtros actuales.</p>';
+
+function renderKPIs() {
+  const vol = ROWS.reduce((a, r) => a + r.lbs, 0);
+  $('kpis').innerHTML =
+    kpi('Volumen total analizado', `${U.fmt(vol)} lb`, `${ROWS.length} lotes`) +
+    kpi('Rendimiento promedio sano', `${U.fmt(U.wavg(ROWS, 'sano'), 1)}%`, 'Ponderado por libras') +
+    kpi('Promedio de branquias totales', `${U.fmt(U.avg(ROWS, r => r.tot), 1)}%`, 'BOML más BOL más BOF') +
+    kpi('Promedio de Branquias Oscuras Fuerte', `${U.fmt(U.avg(ROWS, r => r.bof), 1)}%`, 'BOF por lote', true);
 }
 
-/* ============ 5. RENDER ============ */
-Object.assign(Chart.defaults.font, { size: 13, family: 'system-ui, sans-serif' });
-Chart.defaults.color = '#4b5563'; Chart.defaults.maintainAspectRatio = false;
-Chart.defaults.plugins.legend.position = 'bottom'; Chart.defaults.plugins.legend.labels.usePointStyle = true;
-const CH = {};
-const draw = (id, cfg) => { if (CH[id]) CH[id].destroy(); CH[id] = new Chart($(id), cfg); };
-const ax = (o = {}) => ({ grid: { display: false }, border: { display: false }, ...o });   // sin bordes ni rejilla vertical
-const ay = (o = {}) => ({ grid: { color: '#e9ecef' }, border: { display: false }, ...o });
-const info = r => `${r.l.camaronera}${r.l.piscina ? ', piscina ' + r.l.piscina : ''}, ${r.l.fecha || 'sin fecha'}`;
-let R = [], EX = [], EXV = [];
-const pgD = { p: 0 }, pgE = { p: 0 };
+// Color de texto legible sobre un color de fondo hexadecimal
+const txtColor = hex => { const n = parseInt(hex.slice(1), 16); return ((n >> 16) * .299 + ((n >> 8) & 255) * .587 + (n & 255) * .114) > 150 ? '#1F2D3A' : '#FFFFFF'; };
+// Plugin: escribe el porcentaje dentro de cada segmento de la dona y de las barras
+const pctLabels = {
+  id: 'pctLabels',
+  afterDatasetsDraw(chart) {
+    const ctx = chart.ctx, donut = chart.config.type === 'doughnut';
+    ctx.save(); ctx.font = 'bold 15px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    chart.data.datasets.forEach((ds, di) => chart.getDatasetMeta(di).data.forEach((el, i) => {
+      const v = ds.data[i], bg = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[i] : ds.backgroundColor;
+      let x, y;
+      if (donut) {
+        if (v < 4) return;
+        const a = (el.startAngle + el.endAngle) / 2, r = (el.innerRadius + el.outerRadius) / 2;
+        x = el.x + Math.cos(a) * r; y = el.y + Math.sin(a) * r;
+      } else {
+        if (v < .05 || Math.abs(el.base - el.y) < 20) return;
+        x = el.x; y = (el.base + el.y) / 2;
+      }
+      ctx.fillStyle = txtColor(bg); ctx.fillText(v.toFixed(1) + '%', x, y);
+    }));
+    ctx.restore();
+  }
+};
 
-function update() {
-  if (!LOTS.length) return;
-  const lots = filtered(), ms = $('fMuestra').value, zf = $('fZona').value;
-  R = compute(lots, ms).filter(r => r.tot > 0);
-  kpis(); tab1(); tab2(zf); tab3(compute(lots, 'ALL').filter(r => r.tot > 0));
-  document.querySelectorAll('#chips .chip').forEach(b => b.classList.toggle('on', b.dataset.z === zf));
-  pgD.p = 0; pgE.p = 0; buildEx(zf, ms); renderDiag(); renderEx();
-}
-function kpis() {
-  const S = k => R.reduce((a, r) => a + r.z[k], 0), tot = S('S') + S('H') + S('T') + S('B');
-  const pc = v => tot ? f1(v / tot * 100) + '%' : '—', temps = R.map(r => r.l.temp).filter(t => t != null);
-  const hot = temps.filter(t => t > CFG.TEMP_MAX).length;
-  const set = (k, v, n) => { $('v' + k).textContent = v; $('n' + k).innerHTML = n; };
-  set('u', tot.toLocaleString('es-EC'), `en ${R.length.toLocaleString('es-EC')} lote(s)`);
-  set('s', pc(S('S')), `${S('S').toLocaleString('es-EC')} unid. conformes`);
-  set('h', pc(S('H')), 'cefalotórax'); set('t', pc(S('T')), 'abdomen'); set('b', pc(S('B')), 'sistémico');
-  set('x', temps.length ? f1(temps.reduce((a, b) => a + b, 0) / temps.length) + ' °C' : '—',
-    temps.length ? `Máx. ${f1(Math.max(...temps))} °C` + (hot ? `, <b style="color:${ACC}">${hot} lote(s) sobre ${f1(CFG.TEMP_MAX)} °C</b>` : '') : 'sin datos');
-  $('cx').style.borderLeftColor = hot ? ACC : '#cbd5e1';
-  $('vx').style.color = hot ? ACC : INK;
-}
-function tab1() {
-  const top = R.slice().sort((a, b) => a.pS - b.pS).slice(0, +$('fTop').value);
-  $('note1').textContent = `Mostrando ${top.length} de ${R.length} lotes, de menor a mayor % sano. Los lotes en rojo superan ${f1(CFG.TEMP_MAX)} °C.`;
-  draw('cStack', { type: 'bar',
-    data: { labels: top.map(r => r.l.lote), datasets: ['S', 'B', 'H', 'T'].map(k => ({ label: ZN[k], backgroundColor: ZC[k], data: top.map(r => r['p' + k]) })) },
-    options: { scales: { x: ax({ stacked: true, ticks: { autoSkip: true, maxRotation: 60, color: c => top[c.index] && top[c.index].l.temp > CFG.TEMP_MAX ? ACC : '#4b5563' } }), y: ay({ stacked: true, max: 100, ticks: { callback: v => v + '%' } }) },
-      plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${f1(c.parsed.y)}%`, afterTitle: i => info(top[i[0].dataIndex]) } } } } });
-  const ks = ['H', 'T', 'B'], vals = ks.map(k => R.reduce((a, r) => a + r.z[k], 0)), sum = vals.reduce((a, b) => a + b, 0);
-  draw('cDona', { type: 'doughnut', data: { labels: ks.map(k => ZN[k]), datasets: [{ data: vals, backgroundColor: ks.map(k => ZC[k]), borderWidth: 2 }] },
-    options: { cutout: '62%', plugins: { tooltip: { callbacks: { label: c => `${c.label}: ${c.parsed.toLocaleString('es-EC')} unid. (${sum ? f1(c.parsed / sum * 100) : 0}%)` } } } } });
-}
-function pager(id, st, total, size, cb) {
-  const n = Math.max(1, Math.ceil(total / size)); st.p = Math.min(st.p, n - 1);
-  $(id).innerHTML = `<button class="pg" data-d="-1" ${st.p ? '' : 'disabled'}>Anterior</button><span>Página ${st.p + 1} de ${n}</span><button class="pg" data-d="1" ${st.p < n - 1 ? '' : 'disabled'}>Siguiente</button>`;
-  $(id).onclick = e => { const d = e.target.dataset.d; if (d) { st.p += +d; cb(); } };
-}
-function renderDiag() {
-  const rows = R.slice().sort((a, b) => a.pS - b.pS), size = 15;
-  pager('pgDiag', pgD, rows.length, size, renderDiag);
-  $('tbDiag').innerHTML = rows.slice(pgD.p * size, (pgD.p + 1) * size).map(r => {
-    const l = r.l, hot = l.temp != null && l.temp > CFG.TEMP_MAX;
-    return `<tr class="border-t border-slate-200" ${hot ? 'style="background:#fdf2f2"' : ''}><td class="font-semibold">${esc(l.lote)}</td>
-      <td>${esc(l.camaronera)}${l.piscina ? ' (' + esc(l.piscina) + ')' : ''}</td><td>${esc(l.fecha)}</td>
-      <td class="text-right" style="${hot ? 'color:' + ACC + ';font-weight:700' : ''}">${l.temp == null ? '—' : f1(l.temp)}</td>
-      <td class="text-right">${r.tot.toLocaleString('es-EC')}</td><td class="text-right font-semibold">${f1(r.pS)}%</td>
-      <td class="text-right">${f1(r.pH)}%</td><td class="text-right">${f1(r.pT)}%</td><td class="text-right">${f1(r.pB)}%</td>
-      <td style="color:${r.dx.c};font-weight:600">${dot(r.dx.c)}${r.dx.txt}</td></tr>`;
-  }).join('') || '<tr><td colspan="10" class="text-center text-slate-500 py-6">Sin lotes para los filtros seleccionados</td></tr>';
-}
-function tab2(zf) {
-  const d = PARAMS.map((p, i) => ({ n: p[0].replace('Camarón ', ''), z: p[1], u: R.reduce((a, r) => a + r.c[i], 0) }))
-    .filter(x => x.z !== 'S' && x.u > 0 && (zf === 'ALL' || x.z === zf)).sort((a, b) => b.u - a.u);
-  const tot = d.reduce((a, b) => a + b.u, 0); let cum = 0;
-  d.forEach(x => { x.pre = tot ? cum / tot * 100 : 0; cum += x.u; x.cum = tot ? cum / tot * 100 : 0; x.pct = tot ? x.u / tot * 100 : 0; });
-  draw('cPareto', { data: { labels: d.map(x => x.n), datasets: [
-    { type: 'bar', label: 'Unidades', data: d.map(x => x.u), backgroundColor: d.map(x => ZC[x.z]), order: 2 },
-    { type: 'line', label: '% acumulado', data: d.map(x => +f1(x.cum)), yAxisID: 'y1', borderColor: INK, backgroundColor: INK, pointRadius: 3, order: 1 },
-    { type: 'line', label: 'Límite 80%', data: d.map(() => 80), yAxisID: 'y1', borderColor: ACC, borderDash: [6, 4], pointRadius: 0, order: 0 }] },
-    options: { scales: { x: ax({ ticks: { maxRotation: 55 } }), y: ay({ title: { display: true, text: 'Unidades' } }),
-      y1: { position: 'right', min: 0, max: 100, grid: { display: false }, border: { display: false }, ticks: { callback: v => v + '%' } } } } });
-  $('tbPareto').innerHTML = d.map(x => `<tr class="border-t border-slate-200" ${x.pre < 80 ? `style="color:${ACC};font-weight:600"` : ''}>
-    <td>${dot(x.z)}${esc(x.n)}</td><td class="text-right">${x.u.toLocaleString('es-EC')}</td><td class="text-right">${f1(x.pct)}%</td><td class="text-right">${f1(x.cum)}%</td></tr>`).join('')
-    || '<tr><td colspan="4" class="text-center text-slate-500 py-6">Sin defectos registrados</td></tr>';
-}
-function pearson(p) {
-  const n = p.length; if (n < 3) return null;
-  const mx = p.reduce((a, b) => a + b.x, 0) / n, my = p.reduce((a, b) => a + b.y, 0) / n; let sxy = 0, sxx = 0, syy = 0;
-  p.forEach(q => { sxy += (q.x - mx) * (q.y - my); sxx += (q.x - mx) ** 2; syy += (q.y - my) ** 2; });
-  return sxx && syy ? sxy / Math.sqrt(sxx * syy) : null;
-}
-const limitLine = { id: 'limite', afterDraw(c) {
-  const x = c.scales.x; if (!x || CFG.TEMP_MAX < x.min || CFG.TEMP_MAX > x.max) return;
-  const px = x.getPixelForValue(CFG.TEMP_MAX), a = c.chartArea, g = c.ctx;
-  g.save(); g.strokeStyle = ACC; g.fillStyle = ACC; g.lineWidth = 1.5; g.setLineDash([6, 4]); g.beginPath(); g.moveTo(px, a.top); g.lineTo(px, a.bottom); g.stroke();
-  g.setLineDash([]); g.font = '13px system-ui'; g.fillText('Límite ' + f1(CFG.TEMP_MAX) + ' °C', px + 6, a.top + 14); g.restore(); } };
-function tab3(R3) {
-  R3.forEach(r => { const v = r.ms3.filter(x => x != null); r.rng = v.length > 1 ? Math.max(...v) - Math.min(...v) : 0; });
-  const top = R3.slice().sort((a, b) => b.rng - a.rng).slice(0, +$('fTop').value);
-  const avg = m => { const v = R3.map(r => r.ms3[m]).filter(x => x != null); return v.length ? f1(v.reduce((a, b) => a + b, 0) / v.length) + '%' : '—'; };
-  $('note3').textContent = `Promedio de % sano: 1° ${avg(0)}, 2° ${avg(1)}, 3° ${avg(2)}. ${R3.filter(r => r.rng > CFG.HOMOG).length} lote(s) con más de ${CFG.HOMOG} puntos de diferencia entre muestras. Se muestran ${top.length} de ${R3.length} lotes, primero los más desiguales.`;
-  const sh = ['#A9BCCF', '#5F7F9F', '#2B4560'];
-  draw('cMuestras', { type: 'bar', data: { labels: top.map(r => r.l.lote), datasets: [0, 1, 2].map(m => ({ label: `${m + 1}° muestra`, backgroundColor: sh[m], data: top.map(r => r.ms3[m] == null ? null : +f1(r.ms3[m])) })) },
-    options: { scales: { x: ax({ ticks: { maxRotation: 60 } }), y: ay({ max: 100, ticks: { callback: v => v + '%' } }) },
-      plugins: { tooltip: { callbacks: { afterTitle: i => info(top[i[0].dataIndex]) } } } } });
-  const pts = R.filter(r => r.l.temp != null).map(r => ({ x: r.l.temp, y: +f1(r.fl), r }));
-  const rr = pearson(pts);
-  $('corr').textContent = rr == null ? 'Datos insuficientes para calcular la correlación.' : `Correlación de Pearson r = ${rr.toFixed(2)} con ${pts.length.toLocaleString('es-EC')} lotes. Los puntos rojos superan ${f1(CFG.TEMP_MAX)} °C.`;
-  draw('cTemp', { type: 'scatter', plugins: [limitLine],
-    data: { datasets: [{ label: 'Lotes', data: pts, pointRadius: 5, pointHoverRadius: 7, pointBackgroundColor: pts.map(p => p.x > CFG.TEMP_MAX ? ACC : '#5F7F9F') }] },
-    options: { scales: { x: ax({ suggestedMin: CFG.TEMP_MAX - 2, title: { display: true, text: 'Temperatura (°C)' } }), y: ay({ beginAtZero: true, title: { display: true, text: '% camarón flácido' } }) },
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: c => `Lote ${c.raw.r.l.lote}: ${f1(c.raw.x)} °C, ${f1(c.raw.y)}% flácido` } } } } });
+function renderTab1() {
+  Object.values(charts).forEach(c => c.destroy());
+  const font = { size: 14 }, ink = '#33424F';
+  // Dona: participación porcentual de las libras por clase real
+  const total = ROWS.reduce((a, r) => a + r.lbs, 0);
+  const keys = ['A', 'B', 'C', 'D', '?'].filter(k => ROWS.some(r => r.clase === k));
+  const share = keys.map(k => total > 0 ? ROWS.filter(r => r.clase === k).reduce((a, r) => a + r.lbs, 0) / total * 100 : 0);
+  charts.d = new Chart($('chDonut'), {
+    type: 'doughnut', plugins: [pctLabels],
+    data: { labels: keys.map((k, i) => `${CLASES[k].n}  ${share[i].toFixed(1)}%`),
+      datasets: [{ data: share, backgroundColor: keys.map(k => CLASES[k].c), borderWidth: 2, borderColor: '#fff' }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: '55%',
+      plugins: { legend: { position: 'bottom', labels: { font, color: ink } },
+        tooltip: { callbacks: { label: c => ` ${c.parsed.toFixed(1)}% de las libras` } } } }
+  });
 }
 
-/* ============ 6. EXPLORADOR Y EXPORTACIÓN ============ */
-function buildEx(zf, ms) {
-  const ix = ms === 'ALL' ? [0, 1, 2] : [+ms - 1]; EX = [];
-  R.forEach(r => { const l = r.l;
-    ix.forEach(m => { if (!l.st[m]) return;
-      l.u[m].forEach((v, i) => {
-        const z = PARAMS[i][1]; if (v <= 0 || (zf !== 'ALL' && z !== zf)) return;
-        const o = { 'Lote': l.lote, 'Camaronera': l.camaronera, 'Piscina': l.piscina, 'Fecha': l.fecha, 'Temperatura': l.temp ?? '',
-          'Muestra': m + 1, 'Parámetro': PARAMS[i][0], 'Zona': ZN[z], 'Unidades': v, 'Porcentaje real': +(v / l.st[m] * 100).toFixed(2) };
-        o.s = Object.values(o).join(' ').toLowerCase(); EX.push(o);
-      }); }); });
-}
-function renderEx() {
-  const q = $('exQ').value.trim().toLowerCase(), size = 50;
-  EXV = q ? EX.filter(o => o.s.includes(q)) : EX;
-  pager('pgEx', pgE, EXV.length, size, renderEx);
-  $('exCount').textContent = `${EXV.length.toLocaleString('es-EC')} filas (una por parámetro evaluado). La exportación incluye los filtros y la búsqueda actuales.`;
-  $('tbEx').innerHTML = EXV.slice(pgE.p * size, (pgE.p + 1) * size).map(o => `<tr class="border-t border-slate-200"><td class="font-semibold">${esc(o.Lote)}</td>
-    <td>${esc(o.Camaronera)}</td><td>${esc(o.Fecha)}</td><td>${o.Muestra}° muestra</td><td>${esc(o['Parámetro'])}</td><td>${esc(o.Zona)}</td>
-    <td class="text-right font-semibold">${o.Unidades}</td><td class="text-right">${o['Porcentaje real']}%</td></tr>`).join('')
-    || '<tr><td colspan="8" class="text-center text-slate-500 py-6">Sin filas para mostrar</td></tr>';
-}
-const clean = () => EXV.map(({ s, ...o }) => o);
-function exportCSV() {
-  const d = clean(); if (!d.length) return;
-  const q = v => /[",\n;]/.test(String(v)) ? '"' + String(v).replace(/"/g, '""') + '"' : v, cols = Object.keys(d[0]);
-  const csv = [cols.join(','), ...d.map(o => cols.map(c => q(o[c])).join(','))].join('\n');
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'datos-normalizados.csv'; a.click(); URL.revokeObjectURL(a.href);
-}
-function exportXLS() {
-  const d = clean(); if (!d.length) return;
-  const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(d), 'Datos normalizados');
-  XLSX.writeFile(wb, 'datos-normalizados.xlsx');
+function renderTab2() {
+  const g = {};
+  ROWS.forEach(r => (g[r.cam] = g[r.cam] || []).push(r));
+  const list = Object.entries(g).map(([n, a]) => ({ n, lotes: a.length, lbs: a.reduce((s, r) => s + r.lbs, 0), sano: U.wavg(a, 'sano'), af: U.wavg(a, 'tot') }));
+  const build = (arr, key, color) => !arr.length ? empty : table(['Puesto', 'Camaronera', 'Lotes', 'Libras', key === 'sano' ? '% Sano' : '% Afectación'],
+    arr.map((x, i) => `<tr><td>${i + 1}</td><td class="font-medium">${U.esc(x.n)}</td><td>${x.lotes}</td><td>${U.fmt(x.lbs)}</td>
+      <td style="min-width:150px"><b>${U.fmt(x[key], 1)}%</b><div class="mt-1 h-1.5 rounded bg-slate-200"><div class="h-1.5 rounded" style="width:${Math.min(100, x[key])}%;background:${color}"></div></div></td></tr>`).join(''));
+  $('rank1').innerHTML = build([...list].sort((a, b) => b.sano - a.sano), 'sano', '#1F3A4D');
+  $('rank2').innerHTML = build([...list].sort((a, b) => a.af - b.af), 'af', '#7F94A5');
 }
 
-/* ============ 7. EVENTOS ============ */
-function showTab(id) {
-  ['p1', 'p2', 'p3', 'p4'].forEach(t => $(t).classList.toggle('hidden', t !== id));
-  document.querySelectorAll('#tabs .tab').forEach(b => b.classList.toggle('on', b.dataset.t === id));
-  Object.values(CH).forEach(c => c.resize());
+function renderTab3() {
+  const bad = ROWS.filter(r => r.est === 'bad').length, ok = ROWS.filter(r => r.est === 'ok').length;
+  $('auditKpis').innerHTML = kpi('Lotes auditados', ROWS.length, 'Con los filtros actuales') + kpi('Conformes', ok, 'Clase real igual a la teórica') +
+    kpi('Desvíos detectados', bad, 'Clase distinta a la teórica o BOF en clase A', true) + kpi('Nivel de conformidad', `${ROWS.length ? U.fmt(ok / ROWS.length * 100, 1) : 0}%`, 'Conformes sobre el total');
+  const sorted = [...ROWS].sort((a, b) => (b.est === 'bad') - (a.est === 'bad') || (b.fecha || 0) - (a.fecha || 0)).slice(0, 500);
+  $('audit').innerHTML = !sorted.length ? empty : table(['Lote', 'Piscina', 'Camaronera', 'Fecha', '% Sano', 'Clase teórica', 'Clase real', 'Estado', 'Tipo de desvío'],
+    sorted.map(r => `<tr><td>${U.esc(r.lote)}</td><td>${U.esc(r.piscina)}</td><td>${U.esc(r.cam)}</td><td>${U.showDate(r.fecha)}</td>
+      <td>${U.fmt(r.sano, 1)}%</td><td>${CLASES[r.teo].n}</td><td>${CLASES[r.clase].n}</td>
+      <td><span class="tag ${r.est}">${r.estTxt}</span></td><td>${r.tipo}</td></tr>`).join(''));
 }
-window.addEventListener('DOMContentLoaded', () => {
-  $('kpis').innerHTML = [['u', 'Unidades evaluadas', INK], ['s', 'Fresco y sano', ZC.S], ['h', 'Defectos de cabeza', ZC.H], ['t', 'Defectos de cola', ZC.T],
-    ['b', 'Defectos de todo el cuerpo', ZC.B], ['x', 'Temperatura promedio', '#cbd5e1']].map(k =>
-    `<div class="card p-4" id="c${k[0]}" style="border-left:4px solid ${k[2]}"><p class="text-sm text-slate-500">${k[1]}</p>
-     <p id="v${k[0]}" class="text-2xl font-bold mt-1">0</p><p id="n${k[0]}" class="text-sm text-slate-500 mt-0.5">&nbsp;</p></div>`).join('');
-  $('chips').innerHTML = [['ALL', 'Ver todos'], ['H', 'Solo cabeza'], ['T', 'Solo cola'], ['B', 'Solo cuerpo']].map(z => `<button class="chip" data-z="${z[0]}">${z[1]}</button>`).join('');
-  $('chips').onclick = e => { if (e.target.dataset.z) { $('fZona').value = e.target.dataset.z; update(); } };
-  $('tabs').onclick = e => { if (e.target.dataset.t) showTab(e.target.dataset.t); };
-  ['fCam', 'fLote', 'fZona', 'fMuestra', 'fDesde', 'fHasta', 'fTop'].forEach(id => $(id).addEventListener('input', update));
-  $('dedup').addEventListener('change', () => { populate(); update(); });
-  $('exQ').addEventListener('input', () => { pgE.p = 0; renderEx(); });
-  $('btnReset').onclick = () => { ['fCam', 'fZona', 'fMuestra'].forEach(id => $(id).value = 'ALL'); ['fLote', 'fDesde', 'fHasta'].forEach(id => $(id).value = ''); update(); };
-  $('btnCsv').onclick = exportCSV; $('btnXls').onclick = exportXLS; $('file').addEventListener('change', onFile);
-  autoLoad();
+
+function renderTab4() {
+  const pages = Math.max(1, Math.ceil(ROWS.length / PAGE_SIZE));
+  PAGE = Math.min(PAGE, pages - 1);
+  const slice = ROWS.slice(PAGE * PAGE_SIZE, (PAGE + 1) * PAGE_SIZE);
+  $('raw').innerHTML = !slice.length ? empty : table(HEAD.map(U.esc), slice.map(r => `<tr>${HEAD.map((_, i) => `<td>${U.esc(r.raw[i])}</td>`).join('')}</tr>`).join(''));
+  $('pageInfo').textContent = `Página ${PAGE + 1} de ${pages}, ${ROWS.length} lotes`;
+  $('prev').disabled = PAGE === 0; $('next').disabled = PAGE >= pages - 1;
+}
+
+function render() {
+  ROWS = filtered();
+  renderKPIs();
+  [null, renderTab1, renderTab2, renderTab3, renderTab4][TAB]();
+}
+
+/* ============ 6. EVENTOS ============ */
+document.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => {
+  TAB = +b.dataset.tab;
+  document.querySelectorAll('.tab-btn').forEach(x => x.classList.toggle('active', x === b));
+  document.querySelectorAll('.tab').forEach(s => s.classList.toggle('hidden', s.id !== 'tab' + TAB));
+  render();
 });
+['fCam', 'fCls', 'fSev', 'fFrom', 'fTo'].forEach(id => $(id).onchange = () => { PAGE = 0; render(); });
+$('fTxt').oninput = () => { PAGE = 0; render(); };
+$('btnReset').onclick = () => { ['fCam', 'fCls', 'fSev', 'fFrom', 'fTo', 'fTxt'].forEach(id => $(id).value = ''); PAGE = 0; render(); };
+$('prev').onclick = () => { PAGE--; renderTab4(); };
+$('next').onclick = () => { PAGE++; renderTab4(); };
+$('fileIn').onchange = async e => {
+  const f = e.target.files[0];
+  if (f) loadText(decodeBuffer(await f.arrayBuffer()), 'Carga manual');
+  e.target.value = '';
+};
+
+/* ============ 7. ARRANQUE: CSV en línea o base de respaldo ============ */
+(async function init() {
+  for (const name of CSV_NAMES) {
+    try {
+      const res = await fetch(name + '?v=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) continue;
+      if (loadText(decodeBuffer(await res.arrayBuffer()), 'CSV en línea')) return;
+    } catch (e) { /* prueba el siguiente nombre */ }
+  }
+  loadText(FALLBACK_CSV, 'Base de respaldo de demostración');
+})();
 </script>
 </body>
 </html>
+
