@@ -41,8 +41,7 @@
   <nav class="max-w-7xl mx-auto px-4 flex flex-wrap">
     <button class="tab-btn active" data-tab="1">Distribución y clases</button>
     <button class="tab-btn" data-tab="2">Scorecard de proveedores</button>
-    <button class="tab-btn" data-tab="3">Auditoría de matriz</button>
-    <button class="tab-btn" data-tab="4">Datos crudos</button>
+    <button class="tab-btn" data-tab="3">Datos crudos</button>
   </nav>
 </header>
 
@@ -83,18 +82,8 @@
     <div class="card"><h2 class="font-semibold text-lg mb-3">Menor afectación total en branquias</h2><div id="rank2" class="overflow-auto" style="max-height:60vh"></div></div>
   </section>
 
-  <!-- PESTAÑA 3: AUDITORÍA DE MATRIZ -->
-  <section id="tab3" class="tab hidden space-y-4">
-    <div id="auditKpis" class="grid grid-cols-2 lg:grid-cols-4 gap-4"></div>
-    <div class="card">
-      <h2 class="font-semibold text-lg">Clase teórica contra clase real</h2>
-      <p class="text-sm text-slate-500 mb-3">Matriz por porcentaje sano: clase A desde 60%, clase B de 46% a 59%, clase C menos de 46%. Un lote de clase A con BOF mayor a 0% también es desvío. Los desvíos aparecen primero.</p>
-      <div id="audit" class="overflow-auto" style="max-height:60vh"></div>
-    </div>
-  </section>
-
-  <!-- PESTAÑA 4: DATOS CRUDOS -->
-  <section id="tab4" class="tab hidden card">
+  <!-- PESTAÑA 3: DATOS CRUDOS -->
+  <section id="tab3" class="tab hidden card">
     <div class="flex flex-wrap items-center justify-between gap-3 mb-3">
       <h2 class="font-semibold text-lg">Explorador de datos lote por lote</h2>
       <div class="flex items-center gap-3">
@@ -228,6 +217,7 @@ function claseKey(t) {
 // Convierte las filas en registros numéricos y audita cada lote contra la matriz
 function buildRecords(rows) {
   const H = rows[0], c = mapColumns(H);
+  const keep = H.map((_, i) => i).filter(i => i !== c.log); // columnas visibles (sin logística)
   if (c.sano < 0 || c.lbs < 0 || c.clase < 0) return null;
   const g = (r, i) => i >= 0 ? (r[i] || '').trim() : '';
   U.order = U.detectOrder(rows.slice(1).map(r => g(r, c.fecha)));
@@ -238,7 +228,7 @@ function buildRecords(rows) {
       bof: U.num(g(r, c.bof)), sano: U.num(g(r, c.sano)), lbs: U.num(g(r, c.lbs)), clase: claseKey(g(r, c.clase))
     };
     o.tot = o.boml + o.bol + o.bof;
-    o.raw = [...H.map((_, i) => r[i] ?? ''), o.cam]; // la última columna es la camaronera oficial
+    o.raw = [...keep.map(i => r[i] ?? ''), o.cam]; // la última columna es la camaronera oficial
     o.teo = teorica(o.sano);
     if (o.clase === 'D') o.est = 'warn', o.estTxt = 'Bloqueo', o.tipo = '-';
     else if (o.clase === '?') o.est = 'warn', o.estTxt = 'Sin clase', o.tipo = '-';
@@ -247,7 +237,7 @@ function buildRecords(rows) {
     else o.est = 'bad', o.estTxt = 'Desvío Detectado', o.tipo = CLASES[o.clase].r > CLASES[o.teo].r ? 'Sobreclasificado' : 'Subclasificado';
     return o;
   });
-  return { headers: [...H.map(h => h.replace(/_/g, ' ')), 'Camaronera Oficial'], data };
+  return { headers: [...keep.map(i => H[i].replace(/_/g, ' ')), 'Camaronera Oficial'], data };
 }
 
 /* ============ 4. ESTADO, CARGA Y FILTROS ============ */
@@ -304,7 +294,7 @@ function renderKPIs() {
   const vol = ROWS.reduce((a, r) => a + r.lbs, 0);
   $('kpis').innerHTML =
     kpi('Volumen total analizado', `${U.fmt(vol)} lb`, `${ROWS.length} lotes`) +
-    kpi('Rendimiento promedio sano', `${U.fmt(U.wavg(ROWS, 'sano'), 1)}%`, 'Ponderado por libras') +
+    kpi('Rendimiento promedio Fresco y Sano', `${U.fmt(U.wavg(ROWS, 'sano'), 1)}%`, 'Ponderado por libras') +
     kpi('Promedio de branquias totales', `${U.fmt(U.avg(ROWS, r => r.tot), 1)}%`, 'BOML más BOL más BOF') +
     kpi('Promedio de Branquias Oscuras Fuerte', `${U.fmt(U.avg(ROWS, r => r.bof), 1)}%`, 'BOF por lote', true);
 }
@@ -340,14 +330,16 @@ function renderTab1() {
   // Dona: participación porcentual de las libras por clase real
   const total = ROWS.reduce((a, r) => a + r.lbs, 0);
   const keys = ['A', 'B', 'C', 'D', '?'].filter(k => ROWS.some(r => r.clase === k));
-  const share = keys.map(k => total > 0 ? ROWS.filter(r => r.clase === k).reduce((a, r) => a + r.lbs, 0) / total * 100 : 0);
+  const libras = keys.map(k => ROWS.filter(r => r.clase === k).reduce((a, r) => a + r.lbs, 0));
+  const share = libras.map(l => total > 0 ? l / total * 100 : 0);
   charts.d = new Chart($('chDonut'), {
     type: 'doughnut', plugins: [pctLabels],
     data: { labels: keys.map((k, i) => `${CLASES[k].n}  ${share[i].toFixed(1)}%`),
       datasets: [{ data: share, backgroundColor: keys.map(k => CLASES[k].c), borderWidth: 2, borderColor: '#fff' }] },
     options: { responsive: true, maintainAspectRatio: false, cutout: '55%',
       plugins: { legend: { position: 'bottom', labels: { font, color: ink } },
-        tooltip: { callbacks: { label: c => ` ${c.parsed.toFixed(1)}% de las libras` } } } }
+        tooltip: { callbacks: { title: it => CLASES[keys[it[0].dataIndex]].n,
+          label: c => [` ${c.parsed.toFixed(1)}% de las libras`, ` ${U.fmt(libras[c.dataIndex])} lb`] } } } }
   });
 }
 
@@ -363,17 +355,6 @@ function renderTab2() {
 }
 
 function renderTab3() {
-  const bad = ROWS.filter(r => r.est === 'bad').length, ok = ROWS.filter(r => r.est === 'ok').length;
-  $('auditKpis').innerHTML = kpi('Lotes auditados', ROWS.length, 'Con los filtros actuales') + kpi('Conformes', ok, 'Clase real igual a la teórica') +
-    kpi('Desvíos detectados', bad, 'Clase distinta a la teórica o BOF en clase A', true) + kpi('Nivel de conformidad', `${ROWS.length ? U.fmt(ok / ROWS.length * 100, 1) : 0}%`, 'Conformes sobre el total');
-  const sorted = [...ROWS].sort((a, b) => (b.est === 'bad') - (a.est === 'bad') || (b.fecha || 0) - (a.fecha || 0)).slice(0, 500);
-  $('audit').innerHTML = !sorted.length ? empty : table(['Lote', 'Piscina', 'Camaronera', 'Fecha', '% Sano', 'Clase teórica', 'Clase real', 'Estado', 'Tipo de desvío'],
-    sorted.map(r => `<tr><td>${U.esc(r.lote)}</td><td>${U.esc(r.piscina)}</td><td>${U.esc(r.cam)}</td><td>${U.showDate(r.fecha)}</td>
-      <td>${U.fmt(r.sano, 1)}%</td><td>${CLASES[r.teo].n}</td><td>${CLASES[r.clase].n}</td>
-      <td><span class="tag ${r.est}">${r.estTxt}</span></td><td>${r.tipo}</td></tr>`).join(''));
-}
-
-function renderTab4() {
   const pages = Math.max(1, Math.ceil(ROWS.length / PAGE_SIZE));
   PAGE = Math.min(PAGE, pages - 1);
   const slice = ROWS.slice(PAGE * PAGE_SIZE, (PAGE + 1) * PAGE_SIZE);
@@ -385,7 +366,7 @@ function renderTab4() {
 function render() {
   ROWS = filtered();
   renderKPIs();
-  [null, renderTab1, renderTab2, renderTab3, renderTab4][TAB]();
+  [null, renderTab1, renderTab2, renderTab3][TAB]();
 }
 
 /* ============ 6. EVENTOS ============ */
@@ -398,8 +379,8 @@ document.querySelectorAll('.tab-btn').forEach(b => b.onclick = () => {
 ['fCam', 'fCls', 'fSev', 'fFrom', 'fTo'].forEach(id => $(id).onchange = () => { PAGE = 0; render(); });
 $('fTxt').oninput = () => { PAGE = 0; render(); };
 $('btnReset').onclick = () => { ['fCam', 'fCls', 'fSev', 'fFrom', 'fTo', 'fTxt'].forEach(id => $(id).value = ''); PAGE = 0; render(); };
-$('prev').onclick = () => { PAGE--; renderTab4(); };
-$('next').onclick = () => { PAGE++; renderTab4(); };
+$('prev').onclick = () => { PAGE--; renderTab3(); };
+$('next').onclick = () => { PAGE++; renderTab3(); };
 $('fileIn').onchange = async e => {
   const f = e.target.files[0];
   if (f) loadText(decodeBuffer(await f.arrayBuffer()), 'Carga manual');
